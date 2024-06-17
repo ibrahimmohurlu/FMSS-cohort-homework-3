@@ -32,14 +32,16 @@ public class WeatherApiController {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final RestClient customClient = RestClient.builder()
+    private final RestClient customClient = RestClient
+            .builder()
             .baseUrl("https://api.weatherapi.com/v1")
             .defaultStatusHandler(HttpStatusCode::is4xxClientError, ((request, response) -> {
-                // if there is error throw custom exception
-                // that will be handled by global handler
-                // when throwing send the response body as Map
-                // which will include error message
-
+                /**
+                 if there is error throw custom exception
+                 that will be handled by global handler
+                 when throwing send the response body as Map
+                 which will include error message
+                 */
                 Map jsonMap = objectMapper.readValue(response.getBody(), Map.class);
                 throw new WeatherApi4xxException(jsonMap, HttpStatus.valueOf(response.getStatusCode().value()));
             }))
@@ -92,7 +94,7 @@ public class WeatherApiController {
         for (int i = 14; i < 30; i++) {
             Forecast forecastByDate = getForecastByDate(date, location);
             forecasts.add(forecastByDate);
-            date=date.plusDays(1);
+            date = date.plusDays(1);
         }
 
         Location responseLocation = parseLocationData(jsonResponse);
