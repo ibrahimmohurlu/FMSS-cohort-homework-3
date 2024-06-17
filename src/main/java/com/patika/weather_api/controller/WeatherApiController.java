@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -73,6 +74,36 @@ public class WeatherApiController {
         return ResponseEntity.ok(responseDto);
     }
 
+    @GetMapping("/{location}/monthly")
+    public ResponseEntity<WeatherForecastResponseDto> getMonthlyForecast(@PathVariable String location) {
+        /**
+         * Because API doesn't have monthly forecast
+         * we need to fetch first 14 days (max days API can give us)
+         * and then fetch the remaining day individually
+         * */
+        JsonNode jsonResponse = customClient
+                .get()
+                .uri("/forecast.json?key={API_KEY}&q={location}&aqi=no&days=14", API_KEY, location)
+                .retrieve()
+                .body(JsonNode.class);
+        List<Forecast> forecasts = parseForecastData(jsonResponse);
+
+        LocalDate date = LocalDate.now().plusDays(14);
+        for (int i = 14; i < 30; i++) {
+            Forecast forecastByDate = getForecastByDate(date, location);
+            forecasts.add(forecastByDate);
+            date=date.plusDays(1);
+        }
+
+        Location responseLocation = parseLocationData(jsonResponse);
+
+        WeatherForecastResponseDto responseDto = WeatherForecastResponseDto.builder()
+                .forecast(forecasts)
+                .location(responseLocation)
+                .build();
+        return ResponseEntity.ok(responseDto);
+    }
+
     private List<Forecast> parseForecastData(JsonNode jsonData) {
         List<Forecast> forecast = new ArrayList<>();
         try {
@@ -104,5 +135,14 @@ public class WeatherApiController {
             e.printStackTrace();
         }
         return location;
+    }
+
+    private Forecast getForecastByDate(LocalDate date, String location) {
+        JsonNode jsonNode = customClient
+                .get()
+                .uri("/future.json?key={API_KEY}&q={location}&aqi=no&dt={date}", API_KEY, location, date.toString())
+                .retrieve()
+                .body(JsonNode.class);
+        return parseForecastData(jsonNode).get(0);
     }
 }
